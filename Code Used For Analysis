@@ -1,0 +1,74 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import shapiro, ttest_ind, mannwhitneyu
+
+# Exploratory Data Analysis
+men_results = pd.read_csv('men_results.csv')
+women_results = pd.read_csv('women_results.csv')
+print(men_results.info())
+print(women_results.info())
+#Convert 'date' to datetime
+men_results['date'] = pd.to_datetime(men_results['date'])
+women_results['date'] = pd.to_datetime(women_results['date'])
+
+#Filter by date and tournament
+men_wc = men_results[
+(men_results['date'] >= '2002-01-01') &
+(men_results['tournament'] == 'FIFA World Cup')
+]
+women_wc = women_results[
+(women_results['date'] >= '2002-01-01') &
+(women_results['tournament'] == 'FIFA World Cup')
+]
+#Calculate total goals per match
+men_wc['total_goals'] = men_wc['home_score'] + men_wc['away_score']
+women_wc['total_goals'] = women_wc['home_score'] + women_wc['away_score']
+
+#Plot histograms
+plt.hist(men_wc['total_goals'], bins=15, alpha=0.7, label='Men')
+plt.hist(women_wc['total_goals'], bins=15, alpha=0.7, label='Women')
+plt.xlabel('Total Goals per Match')
+plt.ylabel('Frequency')
+plt.title('Distribution of Total Goals: Men vs Women')
+plt.legend()
+plt.show()
+#Test for normality using Shapiro-Wilk
+sw_men = shapiro(men_wc['total_goals'])
+sw_women = shapiro(women_wc['total_goals'])
+print(f"Shapiro-Wilk p-value (Men): {sw_men.pvalue:.4f}")
+print(f"Shapiro-Wilk p-value (Women): {sw_women.pvalue:.4f}")
+
+#Decide which test to use based on normality
+if sw_men.pvalue > 0.05 and sw_women.pvalue > 0.05:
+print("\n✅ Both distributions appear normal: using unpaired t-test.\n")
+test_stat, p_val = ttest_ind(
+women_wc['total_goals'],
+men_wc['total_goals'],
+alternative='greater'
+)
+else:
+print("\n⚠ At least one distribution is not normal: using Mann-Whitney U test.\n")
+test_stat, p_val = mannwhitneyu(
+women_wc['total_goals'],
+men_wc['total_goals'],
+alternative='greater'
+)
+
+#Print test results
+print(f"Test statistic: {test_stat:.4f}")
+print(f"One-tailed p-value: {p_val:.4f}")
+
+#Final decision based on alpha = 0.10
+alpha = 0.10 # 10% significance level
+if p_val < alpha:
+print("🎉 Conclusion: Women’s matches have significantly more goals on average (p < 0.10).")
+else:
+print("📉 Conclusion: No significant difference at the 10% level.")
+
+#Store results in a dictionary
+result_dict = {
+"p_val": p_val,
+"result": "significant" if p_val < alpha else "not_significant"
+}
+Optional: print the dictionary
+print(result_dict)
